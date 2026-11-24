@@ -1,12 +1,12 @@
 {
-  "name": "cart3r-player",
+  "name": "cmc",
   "version": "1.0.0",
   "description": "Columbine Music Center",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "dist": "electron-builder --mac",
-    "dist:win": "electron-builder --win nsis"
+    "dist:win": "electron-builder --win nsis --publish never"
   },
   "devDependencies": {
     "electron": "^33.0.0",
@@ -16,7 +16,7 @@
     "music-metadata": "^10.6.0"
   },
   "build": {
-    "appId": "com.cart3r.player",
+    "appId": "com.columbinemusiccenter.cmc",
     "productName": "CMC",
     "mac": {
       "category": "public.app-category.music",
@@ -25,6 +25,7 @@
       ]
     },
     "win": {
+      "icon": "icon.ico",
       "target": [
         {
           "target": "nsis",
