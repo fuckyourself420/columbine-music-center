@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Columbine Music Center</title>
+<title>CMC</title>
 <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;scrollbar-width:thin;scrollbar-color:var(--fg) var(--bg)}
@@ -109,13 +109,13 @@ function hat(at){if(!nz){nz=ctx.createBuffer(1,4410,44100);const d=nz.getChannel
 function note(t,b,at){const sp=60/t.bpm,m=/m$/.test(t.key),r=K.indexOf(t.key.replace('m','')),pr=(m?[0,8,3,10]:[0,7,9,5])[(b>>2)&3],fr=65.41*2**((r+pr)/12);
 o('sine',150,at,.25,.9,45);hat(at+sp/2);if(b%2==0)o('triangle',fr,at,sp*1.8,.4);
 if(b%4==0)[1,m?1.189:1.26,1.5].forEach(x=>o('sawtooth',fr*4*x,at,sp*1.6,.04))}
-function play(t,off=0,q){ac();ctx.resume();stop();if(q)P.q=q;P.t=t;P.on=true;P.off=off;P.t0=ctx.currentTime-off;if(!off){t.plays++;t.last=Date.now()}
+function play(t,off=0,q){ac();ctx.resume();stop();if(q)P.q=q;P.t=t;P.on=true;P.off=off;P.t0=ctx.currentTime-off;if(!off){t.plays++;t.last=Date.now()}api.discordPresence({title:t.title,artist:t.art,album:t.al?.t||'',elapsed:off}).catch(()=>{})
 if(t.buf){const s=ctx.createBufferSource();s.buffer=t.buf;s.connect(g);s.start(0,off);P.src=s}
 else{const sp=60/t.bpm;P.nb=Math.ceil(off/sp);P.tm=setInterval(()=>{while(P.t0+P.nb*sp<ctx.currentTime+.2){note(t,P.nb,P.t0+P.nb*sp);P.nb++}},25)}}
-function pause(){P.off=pos();P.on=false;stop()}
+function pause(){P.off=pos();P.on=false;stop();api.discordClear().catch(()=>{})}
 function tog(){if(!P.t)play(sel(),0,sel().al.tr);else P.on?pause():play(P.t,P.off)}
 function seek(s){if(!P.t)return;s=Math.max(0,Math.min(P.t.dur-.1,s));P.on?play(P.t,s):P.off=s}
-function nx(d=1,au){if(!P.t)return;if(au&&P.rep==2)return play(P.t,0);if(d<0&&pos()>3)return play(P.t,0);const q=P.q.length?P.q:P.t.al.tr;let i=P.shf?Math.random()*q.length|0:q.indexOf(P.t)+d;if(i>=q.length){if(au&&!P.rep){stop();P.on=false;P.off=0;return}i=0}if(i<0)i=q.length-1;play(q[i],0)}
+function nx(d=1,au){if(!P.t)return;if(au&&P.rep==2)return play(P.t,0);if(d<0&&pos()>3)return play(P.t,0);const q=P.q.length?P.q:P.t.al.tr;let i=P.shf?Math.random()*q.length|0:q.indexOf(P.t)+d;if(i>=q.length){if(au&&!P.rep){stop();P.on=false;P.off=0;api.discordClear().catch(()=>{});return}i=0}if(i<0)i=q.length-1;play(q[i],0)}
 /* ---------- waveform ---------- */
 function pk(t){if(t.p)return t.p;if(t.path)return FLAT;const r=R(t.id*7+5),sp=240/(t.bpm||120);return t.p=Array.from({length:420},(_,i)=>{const s=i/420*t.dur,e=.3+.25*Math.abs(Math.sin(i/37+t.id))+.2*Math.sin(Math.PI*(i%140)/140),pu=.6+.4*Math.pow(1-(s%sp)/sp,1.5);return Math.min(1,e*pu*(.7+.5*r()))})}
 function draw(cv,t,pg){const d=devicePixelRatio||1,w=cv.clientWidth,h=cv.clientHeight;if(!w)return;cv.width=w*d;cv.height=h*d;const x=cv.getContext('2d');x.scale(d,d);const p=pk(t),n=Math.floor(w/3);for(let i=0;i<n;i++){const bh=Math.max(1,p[Math.floor(i/n*p.length)]*h);x.fillStyle=i/n<pg?TH.fg:TH.dm;x.fillRect(i*3,(h-bh)/2,2,bh)}x.fillStyle=TH.fg;x.fillRect(Math.min(w-1,pg*w),0,1,h)}

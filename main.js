@@ -1,7 +1,10 @@
 const {app,BrowserWindow,ipcMain,dialog,nativeImage,Menu,shell}=require('electron');
 const path=require('path'),fs=require('fs/promises'),fsx=require('fs'),crypto=require('crypto');
+const {Client:DiscordRPC}=require('@xhayper/discord-rpc');
+const DISCORD_CLIENT_ID='1574631415201534002';
+let discordClient=null,discordReady=false;
 const UD=path.join(app.getPath('appData'),'cart3r-player');
-app.setName('Columbine Music Center');app.setPath('userData',UD);
+app.setName('CMC');app.setPath('userData',UD);
 app.commandLine.appendSwitch('autoplay-policy','no-user-gesture-required');
 const EXT=/\.(mp3|m4a|aac|flac|wav|aif|aiff|ogg|opus)$/i,LIB=()=>path.join(UD,'library.json'),CF=()=>path.join(UD,'lastfm.json');
 let win,L={key:'',secret:'',sk:'',user:'',on:false,tok:'',q:[]};
@@ -11,10 +14,38 @@ async function lf(p,post){p={...p,api_key:L.key};const s=Object.keys(p).sort().m
  const q=new URLSearchParams(p),r=await(post?fetch('https://ws.audioscrobbler.com/2.0/',{method:'POST',body:q}):fetch('https://ws.audioscrobbler.com/2.0/?'+q)),j=await r.json();
  if(j.error){const er=new Error(j.message||('error '+j.error));er.code=j.error;throw er}return j}
 async function flush(){while(L.q.length&&L.sk){try{await lf({method:'track.scrobble',sk:L.sk,...L.q[0]},1);L.q.shift();await sv()}catch(e){if(e.code==6||e.code==13){L.q.shift();await sv()}else break}}}
+async function startDiscordRPC(){
+ try{
+  discordClient=new DiscordRPC({clientId:DISCORD_CLIENT_ID});
+  discordClient.on('ready',()=>{discordReady=true;});
+  discordClient.on('disconnected',()=>{discordReady=false;});
+  await discordClient.login();
+ }catch(err){discordReady=false;console.warn('Discord Rich Presence unavailable:',err.message)}
+}
+async function setDiscordPresence(data){
+ if(!discordReady||!discordClient?.user)return false;
+ const title=String(data?.title||'').trim(),artist=String(data?.artist||'').trim();
+ if(!title||!artist)return clearDiscordPresence();
+ try{
+  await discordClient.user.setActivity({
+   type:2,
+   details:`Listening to ${title} by ${artist}`.slice(0,128),
+   state:String(data.album||'Columbine Music Center').slice(0,128),
+   startTimestamp:new Date(Date.now()-Math.max(0,Number(data.elapsed)||0)*1000),
+   largeImageKey:'cmc_icon',
+   largeImageText:'Columbine Music Center'
+  });
+  return true;
+ }catch(err){console.warn('Discord presence update failed:',err.message);return false}
+}
+async function clearDiscordPresence(){
+ try{if(discordReady&&discordClient?.user)await discordClient.user.clearActivity()}catch{}
+ return true;
+}
 function make(){win=new BrowserWindow({width:1320,height:860,minWidth:760,minHeight:520,backgroundColor:'#000000',titleBarStyle:'hiddenInset',trafficLightPosition:{x:14,y:11},webPreferences:{preload:path.join(__dirname,'preload.js'),contextIsolation:true}});win.loadFile('index.html')}
 app.whenReady().then(async()=>{await loadL();
  Menu.setApplicationMenu(Menu.buildFromTemplate([{role:'appMenu'},{label:'File',submenu:[{label:'Add Music Folder…',accelerator:'CmdOrCtrl+O',click:()=>win&&win.webContents.send('add')},{role:'close'}]},{role:'editMenu'},{role:'viewMenu'},{role:'windowMenu'}]));
- make();flush().catch(()=>{});app.on('activate',()=>{if(!BrowserWindow.getAllWindows().length)make()})});
+ make();startDiscordRPC();flush().catch(()=>{});app.on('activate',()=>{if(!BrowserWindow.getAllWindows().length)make()})});
 app.on('window-all-closed',()=>app.quit());
 ipcMain.handle('load',async()=>{try{return JSON.parse(await fs.readFile(LIB(),'utf8'))}catch{return null}});
 ipcMain.handle('save',(e,d)=>fs.writeFile(LIB(),JSON.stringify(d)));
@@ -49,3 +80,7 @@ ipcMain.handle('lfm',async(e,a,d)=>{try{
  if(a=='now'){if(L.on&&L.sk)await lf({method:'track.updateNowPlaying',sk:L.sk,...d},1);return 1}
  if(a=='scrobble'){if(L.on&&L.sk){L.q.push(d);await sv();await flush()}return 1}
 }catch(err){return{err:err.message}}});
+
+ipcMain.handle('discord-presence',async(e,d)=>setDiscordPresence(d));
+ipcMain.handle('discord-clear',async()=>clearDiscordPresence());
+app.on('before-quit',()=>{clearDiscordPresence();try{discordClient?.destroy()}catch{}});
